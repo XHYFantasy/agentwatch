@@ -1,0 +1,19 @@
+{
+  "name": "@local/agentwatch-smoke",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "meta": {
+    "title": "远程监看烟雾测试",
+    "description": "在输入框上方渲染一张硬编码卡片，用于验证插件链路与移动端渲染。"
+  },
+  "exports": { ".": "./index.js", "./client": "./client.js" },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+    }
+  }
+}

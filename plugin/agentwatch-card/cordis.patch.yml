@@ -1,0 +1,30 @@
+- insert:
+    - id: agentwatch-card
+      name: '@local/agentwatch-card'
+      config:
+        # ---- T9-c：审批 pending 端点（`GET /agentwatch/pending`）----
+        #
+        # 给手机 App 轮询用：App 切后台后 WebView 会被系统冻结，
+        # 「有审批来了」只能由宿主进程内替它记着，再让 App 去拉。
+        #
+        # `enabled: false` 是总开关 —— 关掉时宿主半第一段就 return，
+        # 连路由都不注册，零开销、零暴露面。
+        pending:
+          enabled: true
+          path: '/agentwatch/pending'
+          maxWaitSec: 60 # 长轮询最长挂多久；硬上限也是 60，写更大没用
+
+      # ⚠️ 更新于 2026-10-12 晚：这里原来有一组 `explain:` 配置（T5「把命令翻成一句
+      # 人话」用的 provider / model / timeoutMs / enabled 开关）。T5 已撤销，配置项
+      # 随之作废，整段删掉。
+      #
+      # 为什么撤：dsh **自己**在 sandbox escalation 时就会写 `displayReason`
+      # （en/zh 双语 + 详细 justification，见 refs\dsh-sandbox\lib\index.js:105-115），
+      # 而 T5 的监听器是 prepend，会把它整条顶掉 —— 用差中文遮蔽好中文。
+      #
+      # 插件的翻译功能现在全在客户端半（./client.js，T3：风险分级 / 命令原文 / 后果
+      # 说明，落在原生审批卡内部的 conversation.approval.detail 槽位）。
+      #
+      # 完整判据见 plugin/agentwatch-card/index.js 顶部注释与 AGENTS.md「T5 撤销」一节。
+      #
+      # 改完这个文件要**重启 dsh**（桌面端 = 重开 exe；手机链路 = 重启 bridge）才生效。

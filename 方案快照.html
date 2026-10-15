@@ -1,0 +1,626 @@
+<title>远程AI监看</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;700&display=swap">
+<style>
+/* ── 设计计划 ─────────────────────────────────────────────
+   调色板：冷灰中性（略偏青）打底，深青是唯一强调色；
+           绿 / 琥珀 / 红只承担 通过 / 待办 / 风险 三种语义，不做装饰。
+   字体：  Noto Serif SC 标题（衬线给分量）／ Noto Sans SC 正文／
+           IBM Plex Mono 承载真实标识符（T1、D12、callId、slot 名）
+   布局：  单列文档流，880px 上限；分区靠细线与等宽标签而不是卡片。
+           实心底色只留给「卡点」与「红线」两处 —— 它们才是要停下来的地方。
+   ──────────────────────────────────────────────────────── */
+:root {
+  --bg: #F4F6F6;
+  --surface: #FFFFFF;
+  --surface-2: #EBEFEF;
+  --ink: #12181A;
+  --ink-2: #56646A;
+  --ink-3: #7E8D92;
+  --line: #DDE3E3;
+  --line-2: #C4CDCF;
+  --accent: #0A6669;
+  --accent-wash: #E1EFEF;
+
+  --ok: #1B7346;
+  --ok-wash: #E2F1E7;
+  --warn: #8A5708;
+  --warn-wash: #F6EDDA;
+  --risk: #9E2828;
+  --risk-wash: #F8E7E6;
+
+  --f-display: "Noto Serif SC", "Source Han Serif SC", "Songti SC", Georgia, serif;
+  --f-body: "Noto Sans SC", system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --f-mono: "IBM Plex Mono", "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0E1314;
+    --surface: #161D1F;
+    --surface-2: #1C2426;
+    --ink: #E6EBEC;
+    --ink-2: #96A4A8;
+    --ink-3: #78878B;
+    --line: #262F32;
+    --line-2: #3A4649;
+    --accent: #5AC3C5;
+    --accent-wash: #10302F;
+
+    --ok: #5FC08D;
+    --ok-wash: #0F2C1E;
+    --warn: #D8A746;
+    --warn-wash: #302509;
+    --risk: #E5847E;
+    --risk-wash: #331917;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0E1314;
+  --surface: #161D1F;
+  --surface-2: #1C2426;
+  --ink: #E6EBEC;
+  --ink-2: #96A4A8;
+  --ink-3: #78878B;
+  --line: #262F32;
+  --line-2: #3A4649;
+  --accent: #5AC3C5;
+  --accent-wash: #10302F;
+
+  --ok: #5FC08D;
+  --ok-wash: #0F2C1E;
+  --warn: #D8A746;
+  --warn-wash: #302509;
+  --risk: #E5847E;
+  --risk-wash: #331917;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.68;
+  padding-inline: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 880px;
+  margin-inline: auto;
+  padding-block: 44px 96px;
+  display: flex;
+  flex-direction: column;
+  gap: 44px;
+}
+
+/* ── 页头 ─────────────────────────────── */
+.mast { display: flex; flex-direction: column; gap: 18px; }
+
+.eyebrow {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+
+h1 {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: clamp(34px, 6vw, 50px);
+  line-height: 1.12;
+  letter-spacing: 0.01em;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.lede {
+  font-size: 17px;
+  line-height: 1.72;
+  color: var(--ink-2);
+  max-width: 40em;
+  margin: 0;
+}
+
+.facts {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 34px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.facts li { display: flex; flex-direction: column; gap: 2px; }
+.facts .k {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.facts .v { font-size: 14px; font-weight: 500; }
+
+/* ── 分区 ─────────────────────────────── */
+section { display: flex; flex-direction: column; gap: 18px; }
+
+h2 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 21px;
+  line-height: 1.3;
+  margin: 0;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+h2 .aside {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  text-transform: none;
+}
+
+p { margin: 0; max-width: 42em; }
+p + p { margin-top: 10px; }
+
+code, .mono {
+  font-family: var(--f-mono);
+  font-size: 0.88em;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  word-break: break-word;
+}
+
+/* ── 四维网格 ─────────────────────────── */
+.quad {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.quad li {
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--line-2);
+  border-radius: 3px;
+  padding: 12px 13px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--surface);
+}
+.quad .qname { font-weight: 700; font-size: 14px; line-height: 1.4; }
+.quad .qwho { font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+.quad .qtag {
+  margin-top: auto;
+  font-family: var(--f-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+}
+
+.gap-note {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-wash);
+  padding: 13px 16px;
+  border-radius: 0 4px 4px 0;
+}
+.gap-note .lbl {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  white-space: nowrap;
+  flex: none;
+  padding-top: 2px;
+}
+.gap-note p { font-size: 14.5px; }
+
+/* ── 决策表 ───────────────────────────── */
+.dl { display: flex; flex-direction: column; margin: 0; }
+.dl > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 18px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.dl > div:first-child { border-top: 1px solid var(--line); }
+.dl dt {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+.dl dd { margin: 0; font-size: 14.5px; color: var(--ink-2); line-height: 1.6; }
+.dl dd strong { color: var(--ink); font-weight: 700; }
+
+/* ── 进展 ─────────────────────────────── */
+.track { display: flex; flex-direction: column; gap: 0; }
+.step {
+  display: grid;
+  grid-template-columns: 58px 1fr auto;
+  gap: 16px;
+  align-items: start;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.step:first-child { border-top: 1px solid var(--line); }
+.step .id {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink-3);
+  padding-top: 2px;
+}
+.step.done .id { color: var(--ok); }
+.step .body { display: flex; flex-direction: column; gap: 4px; }
+.step .ttl { font-weight: 700; font-size: 15px; }
+.step .desc { font-size: 13.5px; color: var(--ink-2); line-height: 1.6; }
+
+.chip {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  margin-top: 2px;
+}
+.chip.ok { color: var(--ok); background: var(--ok-wash); border-color: color-mix(in srgb, var(--ok) 24%, transparent); }
+.chip.todo { color: var(--warn); background: var(--warn-wash); border-color: color-mix(in srgb, var(--warn) 26%, transparent); }
+
+.chain {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  line-height: 1.9;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 11px 14px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.chain b { color: var(--accent); font-weight: 600; }
+
+/* ── 约束 ─────────────────────────────── */
+.constraints { display: flex; flex-direction: column; gap: 0; }
+.cn {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 18px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+.cn:first-child { border-top: 1px solid var(--line); }
+.cn .tag {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  padding-top: 3px;
+}
+.cn .tag.arch { color: var(--risk); }
+.cn .txt { font-size: 14.5px; line-height: 1.62; }
+.cn .txt b { font-weight: 700; }
+
+/* ── 卡点 ─────────────────────────────── */
+.blocker {
+  background: var(--risk-wash);
+  border: 1px solid color-mix(in srgb, var(--risk) 26%, transparent);
+  border-radius: 5px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.blocker .head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; }
+.blocker .bid {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  color: var(--risk);
+  border: 1px solid color-mix(in srgb, var(--risk) 34%, transparent);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.blocker .bt { font-weight: 700; font-size: 16.5px; }
+.blocker p { font-size: 14.5px; color: var(--ink-2); }
+.blocker p b { color: var(--ink); }
+
+/* ── 下一步 ───────────────────────────── */
+ol.next { margin: 0; padding: 0; list-style: none; counter-reset: n; display: flex; flex-direction: column; gap: 0; }
+ol.next li {
+  counter-increment: n;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 14px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14.5px;
+  line-height: 1.6;
+}
+ol.next li:first-child { border-top: 1px solid var(--line); }
+ol.next li::before {
+  content: counter(n);
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+ol.next li b { font-weight: 700; }
+ol.next .warnli::before { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 34%, transparent); }
+
+/* ── 红线 ─────────────────────────────── */
+.redline {
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+}
+.redline .rl {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--risk);
+}
+.redline p { font-size: 14px; color: var(--ink-2); }
+.redline .files {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink);
+  line-height: 1.85;
+  word-break: break-all;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+footer code { font-size: 0.92em; }
+
+@media (max-width: 720px) {
+  .quad { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 560px) {
+  body { padding-inline: 18px; }
+  .wrap { padding-block: 32px 64px; gap: 36px; }
+  .quad { grid-template-columns: 1fr; }
+  .dl > div { grid-template-columns: 1fr; gap: 4px; }
+  .cn { grid-template-columns: 1fr; gap: 6px; }
+  .step { grid-template-columns: 46px 1fr; }
+  .step .chip { grid-column: 2; justify-self: start; margin-top: 6px; }
+  .facts { gap: 14px 26px; }
+}
+</style>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">项目快照 · 2026-10-12</p>
+    <h1>远程AI监看</h1>
+    <p class="lede">把编程 agent 的每一步实时翻成大白话，搬到手机上，让批准和拒绝发生在手机上，面向国内用户。性质是科研与设计探索，后续开源。</p>
+    <ul class="facts">
+      <li><span class="k">宿主</span><span class="v">dsh 插件 · 桌面端</span></li>
+      <li><span class="k">手机端</span><span class="v">浏览器 / PWA</span></li>
+      <li><span class="k">进度</span><span class="v">T0–T2 已通过 · 1 处卡点</span></li>
+      <li><span class="k">工作目录</span><span class="v">远程AI监看\</span></li>
+    </ul>
+  </header>
+
+  <section>
+    <h2>缝在哪 <span class="aside">四维交集</span></h2>
+    <p>单独看每一个维度都有人占住了。四维的交集空着，方案的卖点也只能落在最里面那层。</p>
+    <ul class="quad">
+      <li>
+        <span class="qname">实时大白话解释</span>
+        <span class="qwho">Cowork、noob-mode、claude-narrator、MUSE（UIST 2026）</span>
+        <span class="qtag">已有人占</span>
+      </li>
+      <li>
+        <span class="qname">移动端监看</span>
+        <span class="qwho">AgentWatch、CodeAgent、Codex 手机版等一批，全给原始技术产物</span>
+        <span class="qtag">已有人占</span>
+      </li>
+      <li>
+        <span class="qname">手机上的批准 / 拒绝</span>
+        <span class="qwho">Codex 手机版有；dsh 生态里 dsh-mobile-remote、dsh-notifier 做过</span>
+        <span class="qtag">已有人占</span>
+      </li>
+      <li>
+        <span class="qname">国内可用</span>
+        <span class="qwho">Cowork 与 Claude Code 官方在大陆均不可用</span>
+        <span class="qtag">已有人占</span>
+      </li>
+    </ul>
+    <div class="gap-note">
+      <span class="lbl">结论</span>
+      <p>七个做实时解释的实现者全部零移动端；监看 App 一堆但全无大白话。<strong>手机审批已经被做过，不能再当卖点</strong>——别人搬运的是审批动作，本项目要搬运的是「这一步到底在干什么」。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>已锁死决策 <span class="aside">改这些要先推翻理由</span></h2>
+    <dl class="dl">
+      <div>
+        <dt>宿主</dt>
+        <dd>dsh 插件路线；<strong>形态 = 桌面端</strong> <code>DeepSeek Harness.exe</code> v0.2.0-rc.2，自带 Node 24 / Electron 44 / Python 3.12 / CLI，不需要 npm 再装 dsh</dd>
+      </div>
+      <div>
+        <dt>手机端形态</dt>
+        <dd>浏览器 / PWA，复用宿主内置 webserver，浏览器白得</dd>
+      </div>
+      <div>
+        <dt>「看」的形态</dt>
+        <dd>结构化步骤卡片为主，终端原样可切换用于排查</dd>
+      </div>
+      <div>
+        <dt>解释怎么生成</dt>
+        <dd>混合管道：常见操作走<strong>规则模板</strong>（零延迟零成本），复杂步骤走<strong>小模型异步富化</strong>，带幂等缓存</dd>
+      </div>
+      <div>
+        <dt>解释层用什么写</dt>
+        <dd>复用术语助手的 Java core，做成独立进程，插件走 RPC 调用</dd>
+      </div>
+      <div>
+        <dt>操控怎么接管</dt>
+        <dd>dsh 的 <code>approval/request</code> waterfall，插件作为 answerer 认领请求</dd>
+      </div>
+      <div>
+        <dt>多 agent</dt>
+        <dd>复用宿主的 profile / 会话体系，不自研</dd>
+      </div>
+      <div>
+        <dt>公网</dt>
+        <dd>局域网优先，隧道 / 反代做成可插拔入口</dd>
+      </div>
+      <div>
+        <dt>Claude Code 副宿主</dt>
+        <dd>延后（T8），先不做</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section>
+    <h2>当前进展 <span class="aside">生死线已解除</span></h2>
+    <div class="track">
+      <div class="step done">
+        <span class="id">T0</span>
+        <div class="body">
+          <span class="ttl">文档落盘</span>
+          <span class="desc">入口 <code>AGENTS.md</code> + 档案（含三轮调研与 dsh 实测全节）。文档与实测事实已对齐。</span>
+        </div>
+        <span class="chip ok">已通过</span>
+      </div>
+      <div class="step done">
+        <span class="id">T1</span>
+        <div class="body">
+          <span class="ttl">宿主跑通</span>
+          <span class="desc">宿主定案桌面端；dsh 凭据已配且实测可用，agent 能真跑。</span>
+        </div>
+        <span class="chip ok">已通过</span>
+      </div>
+      <div class="step done">
+        <span class="id">T2</span>
+        <div class="body">
+          <span class="ttl">最小插件 + 手机真机验证</span>
+          <span class="desc">自写插件 <code>plugin\agentwatch-smoke</code> 注册 <code>conversation.composer.dock</code>，手机上渲染成功且点击交互有效，客户端 JS 真在跑。</span>
+        </div>
+        <span class="chip ok">已通过</span>
+      </div>
+      <div class="step">
+        <span class="id">T3</span>
+        <div class="body">
+          <span class="ttl">事件流 → 白话卡片流</span>
+          <span class="desc">前提已具备：凭据通了，可以接真实事件流，不必灌假事件。</span>
+        </div>
+        <span class="chip todo">待开工</span>
+      </div>
+    </div>
+    <p class="chain">adb reverse tcp:3081 &nbsp;→&nbsp; 127.0.0.1:3081 &nbsp;→&nbsp; dsh webserver &nbsp;→&nbsp; <b>conversation.composer.dock</b> &nbsp;&nbsp;<span style="color:var(--ink-3)">当前唯一走通的链路</span></p>
+  </section>
+
+  <section>
+    <h2>已探明的硬约束 <span class="aside">全部一手实测</span></h2>
+    <div class="constraints">
+      <div class="cn">
+        <span class="tag arch">架构级</span>
+        <span class="txt"><b>审批请求体不带工具参数。</b>只有 <code>toolName</code> + <code>reason</code> + 可选 <code>callId</code>。要在手机上展示「到底要改什么」，必须自己用 <code>callId</code> 关联已经流出的 <code>tool/call</code> 事件，还要抢时间差。</span>
+      </div>
+      <div class="cn">
+        <span class="tag arch">架构级</span>
+        <span class="txt"><b>只有一次性授权。</b>没有 allow-always、没有记忆规则、没有撤销，而且审批必须在打开的 turn 内，idle 时调用直接抛错。待批状态必须外部自建。</span>
+      </div>
+      <div class="cn">
+        <span class="tag arch">架构级</span>
+        <span class="txt"><b>插件无沙箱，webserver 无内置认证。</b>远程安全层必须自建。</span>
+      </div>
+      <div class="cn">
+        <span class="tag">厂商限制</span>
+        <span class="txt"><b>硬拒非 loopback。</b>host 只接受 <code>127.0.0.1</code> 与 <code>0.0.0.0</code>，且后者被显式拒绝，理由是会把远程代码执行暴露到网络上。远程只能靠自建反代，<code>--trusted-host</code> 是官方留的口子。</span>
+      </div>
+      <div class="cn">
+        <span class="tag">桌面端</span>
+        <span class="txt"><b>只绑 127.0.0.1 上的随机端口</b>（观测到 19387），裸请求返回 401。bridge 必须动态发现端口并改写 Host / Origin，纯 TCP 透传不够用。</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>卡在哪</h2>
+    <div class="blocker">
+      <div class="head">
+        <span class="bid">D12</span>
+        <span class="bt">真正的载体位还没验过</span>
+      </div>
+      <p>T2 只验了装饰位 <code>conversation.composer.dock</code>（输入框旁边）。真正要当载体的是 <b><code>conversation.chat.node</code></b>，也就是对话流里的卡片，<b>尚未验证</b>。</p>
+      <p>它是 T3 和 T4 全部的地基。如果对话流卡片在手机上渲染不出来，整条插件 UI 路线要重新评估。</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>下一步 <span class="aside">T3</span></h2>
+    <ol class="next">
+      <li class="warnli">先结 <b>D12</b>：把挂载点从 <code>composer.dock</code> 换成 <code>conversation.chat.node</code>，在手机上确认对话流卡片能渲染。</li>
+      <li>订阅 <code>session/event</code>，把 <code>tool/call</code> 与 <code>tool/result</code> 切成步骤，用 <code>callId</code> 配对。</li>
+      <li>规则模板：<code>Read</code> / <code>Edit</code> / <code>Write</code> / <code>Bash</code> / <code>Grep</code> / <code>Glob</code> / <code>Task</code> 各译成一句大白话。</li>
+      <li>验收：agent 干活时手机上滚出人话卡片，而不是 diff。</li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>安全红线</h2>
+    <div class="redline">
+      <span class="rl">手机端一律不直连</span>
+      <p>这些文件里是明文凭据，bridge 必须做字段白名单，绝不透传：</p>
+      <p class="files">~/.claude/settings.json&nbsp;&nbsp;·&nbsp;&nbsp;~/.claude/history.jsonl&nbsp;&nbsp;·&nbsp;&nbsp;C:\Users\&lt;用户名&gt;\.dsh\.credentials.yaml</p>
+      <p>术语助手项目在 2026-09-29 因截图泄露过一次 key。</p>
+    </div>
+  </section>
+
+  <footer>
+    细节见 <code>AGENTS.md</code>（入口）与 <code>AGENTS-档案.md</code>（档案）。本页是快照，不是事实源。
+  </footer>
+
+</div>

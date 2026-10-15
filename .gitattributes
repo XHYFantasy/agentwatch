@@ -1,0 +1,18 @@
+# 交给 git 自己判断文本/二进制，仓库内和工作区**都用 LF**（两边一致，谁都不改写谁）。
+# 不加这个的话，Windows 和 macOS 各提交一次就把整个文件的换行都改掉，
+# diff 里一大片「全变了」，真正改了哪一行反而看不见。
+# ⚠️ 这里刻意不跟随 autocrlf：本机的文件本来就是 LF，跟着它走会平白重写几十个文件。
+* text=auto eol=lf
+
+# 明确标成二进制 —— 别让 git 去「规整」它们，规整 = 改坏
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.jar  binary
+*.apk  binary
+*.jks  binary
+*.ttf  binary
+*.woff binary
+*.woff2 binary

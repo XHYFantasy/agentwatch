@@ -1,0 +1,334 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  T9-b / B3 —— 设置页。
+
+  🔴 这一页**不是**用来「调参数」的，是用来回答「**连不上了，我该看哪儿**」的。
+     起因：用户提出「地址能不能改成可编辑的」，而实测证明不能 —— network_security_config.xml
+     是编译期资源、没有运行时 API，且它表达不了网段（写不了 100.64.0.0/10），
+     「地址可改」和「只许连这一个 IP」不能同真。而那个 IP 是 Tailscale 固定分配的，
+     真变了的时候用户一定在电脑跟前（得起 ts-bridge）⇒ 重建包的成本可接受。
+     所以真痛点不是「改不了地址」，是「连不上时不知道看哪儿」—— 补的是这个。
+
+  ⚠️ 全部走 framework 自带主题（Theme.DeviceDefault），深浅色跟随系统，
+     不引任何 style/theme 依赖 —— 本工程至今零依赖。
+  ⚠️ fitsSystemWindows：targetSdk 36 强制 edge-to-edge，不写这个，第一行会被状态栏压住。
+
+  🔴 **正文缩进一律靠布局，不许靠「手打空格 + 硬换行」**（2026-10-14 踩到）：
+     第一版把五条写成一个大 TextView，条目内用手打的全角空格缩进 —— 结果是
+     **凡是系统自动换行的地方，续行都弹回最左边**（截图里「和电脑必须…」「们都加进白名单…」
+     都是顶格的），一页里有几处看着像排版坏了。
+     ⇒ 每条 = 「标题 TextView + 正文 TextView」，缩进交给 `layout_marginStart`，
+       换行怎么折都对齐。**别再用空格假装缩进。**
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    android:fillViewport="true"
+    android:scrollbars="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="36dp">
+
+        <!-- ══════════ 返回 ══════════ -->
+        <TextView
+            android:id="@+id/back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="-8dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingStart="8dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="← 返回"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="AI 监看 · 设置"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="23sp"
+            android:textStyle="bold" />
+
+        <!-- ══════════ 电脑地址 ══════════ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="电脑地址"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/addr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="#1A888888"
+            android:fontFamily="monospace"
+            android:paddingStart="14dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="12dp"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textIsSelectable="true"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingMultiplier="1.3"
+            android:text="这是你电脑在 Tailscale 里的地址，写死在这里，改不了。正常也不需要改 —— 真变的那天，你人肯定在电脑跟前。"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp" />
+
+        <!-- ══════════ 自查五条 ══════════ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="连不上了？按顺序查这五条"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <!-- ① -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="1. 电脑上的 Tailscale 开着吗？"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="右下角任务栏找它的小图标，没开就打开。手机和电脑必须都连在同一个 Tailscale 账号下。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <!-- ② -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="2. 电脑上那条「桥接」命令还开着吗？"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="它开着，手机才连得上。那个黑色命令窗口如果关了，重新跑一次就行。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <!-- ③ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="3. 杀毒软件拦住了吗？"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="卡巴斯基 / 360 / 火绒 会掐掉 Tailscale 和这个 App 的外连，症状就是「全都对，就是连不上」。把它们都加进白名单，并把「应用程序控制」关掉。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <!-- ④ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="4. 手机允许它后台跑了吗？"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="这台手机管得特别严 —— 见下面那一节。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <!-- ⑤ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="5. 通知权限开了吗？"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="没有通知权限的话，服务照跑，但待批的审批不会弹出来。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/btn_notif"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:text="→ 打开本应用的通知设置"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/btn_appinfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackground"
+            android:paddingTop="14dp"
+            android:paddingBottom="14dp"
+            android:text="→ 打开本应用的系统详情页"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <!-- ══════════ 保活 ══════════ -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="别让它被系统杀掉"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingMultiplier="1.3"
+            android:text="这台手机砍后台特别狠。不设下面三条，症状是「刚开好好的，过一会儿就不响了」—— 最难查的那一种。"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="打开「i 管家」，做三件事："
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="6dp"
+            android:lineSpacingMultiplier="1.5"
+            android:text="① 后台运行 → 允许后台运行\n② 同一页 → 后台高耗电 → 允许\n③ 自启动 → 允许"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <!-- 两条注意事项：同样拆成「标题 + 正文」，理由同文件头那条 -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="别从「最近任务」里划掉它"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="这台手机把「划掉」当成强制关闭，服务和通知会一起消失，而且不会自己回来。本 App 故意不出现在最近任务里，所以一般你也划不到它。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="重启手机之后"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22dp"
+            android:layout_marginTop="4dp"
+            android:lineSpacingMultiplier="1.35"
+            android:text="它会自己回来，不用管。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="15sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:background="#1A888888"
+            android:lineSpacingMultiplier="1.35"
+            android:paddingStart="14dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="12dp"
+            android:text="⚠️ 系统设置里那个「电池 → 不受限制 / 不优化」，在这台手机上没用 —— 实测过，别在那边花时间。照上面那三条走。"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="14sp" />
+
+        <!--
+          版本号。不是装饰 —— 文档里每次要回答「手机上跑的是哪一版」都得 adb 去问，
+          摆在这里省掉那一趟。
+        -->
+        <TextView
+            android:id="@+id/version"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:fontFamily="monospace"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp" />
+
+    </LinearLayout>
+</ScrollView>

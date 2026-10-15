@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  T9-b / B3 —— 桌面图标长按的快捷方式。
+
+  🔴 为什么非要有这条：设置页的**主入口是常驻通知**，而通知本身可能不在
+     （权限被关、ROM 把它折叠进分组、用户手动清过）。那时设置页就**没有入口**了 ——
+     而用户需要它的场景恰恰是「App 不工作了」。长按图标是那个场景下唯一还活着的一条路。
+
+  ⚠️ 静态快捷方式（这个文件）API 25+ 才有，minSdk 26 ⇒ 没问题。
+  ⚠️ 挂法是 MainActivity 里的 <meta-data android:name="android.app.shortcuts">，
+     因为快捷方式是**挂在 launcher activity 上**的，不是挂在目标 activity 上。
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="settings"
+        android:enabled="true"
+        android:shortcutShortLabel="@string/shortcut_settings_short"
+        android:shortcutLongLabel="@string/shortcut_settings_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.agentwatch.app"
+            android:targetClass="com.agentwatch.app.SettingsActivity" />
+    </shortcut>
+</shortcuts>

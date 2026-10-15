@@ -1,0 +1,19 @@
+{
+  "name": "@local/agentwatch-card",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "meta": {
+    "title": "远程监看 · 对话流卡片",
+    "description": "客户端半：在 dsh 原生审批卡内部那一格（conversation.approval.detail）补上风险分级与后果说明；Host 半：T9-c 的审批 pending 端点 GET /agentwatch/pending（供手机 App 后台轮询）。"
+  },
+  "exports": { ".": "./index.js", "./client": "./client.js" },
+  "dsh": {
+    "bundle": { "patch": "./cordis.patch.yml" },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": ["@deepseek-ai/dsh-client-ui-conversation"]
+    }
+  }
+}

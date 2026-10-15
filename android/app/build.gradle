@@ -1,0 +1,165 @@
+plugins {
+    // 只挂这一个：Kotlin 编译由 AGP 9 内置提供（见根 build.gradle 的说明）
+    id 'com.android.application'
+}
+
+// ============================================================================
+// T9-f release 签名
+// ============================================================================
+// ⚠️ keystore 与口令**故意都放在仓库目录之外**（具体放哪由你定，别放进 repo）。
+//    理由不是洁癖：这个工程将来要开源，而 .gitignore 是防不住的 —— 忘写一次，
+//    密钥就永久留在公开历史里（改了也没用，只能换密钥重新发版）。
+//    把它们放在仓库目录之外，那条路就根本不存在。
+//    路径靠 AGENTWATCH_KEYSTORE 环境变量传（构建APK.ps1 会设），
+//    这样 gradle 文件里不出现任何绝对路径，别人 clone 下来照样能构建。
+//    回落路径 `${rootDir}/keystore.properties` 只是为了「万一你把密钥放进来了」也能用。
+//
+// 文件不存在时：release 不配 signingConfig ⇒ 退回 debug 签名，**构建不会失败**。
+def keystoreProps = new Properties()
+def keystorePropsFile = file(System.getenv('AGENTWATCH_KEYSTORE') ?: "${rootDir}/keystore.properties")
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+// ============================================================================
+// T9-e 开源：地址不再写死在源码里
+// ============================================================================
+// 原来源码里写死着一个 Tailscale 地址，两处：AppConfig.DEFAULT_BASE_URL 一处、
+// res/xml/network_security_config.xml 一处。自用没问题，**开源就是致命的** ——
+// 别人 clone 下来不改，就永远连不上自己那台电脑。
+// 而这个故障的症状是 **WebView 一直转、页面全白、一条错都不报** ——
+// 足够让人以为是服务端坏了，查半天查不到「地址根本没换」。
+//
+// ⇒ 地址改从 local.properties 读（那个文件本来就不进仓库），构建时注入两处：
+//    ① BuildConfig.BASE_URL                → AppConfig 用
+//    ② res/xml/network_security_config.xml → 明文 HTTP 白名单（Android 9+ 不配就掐）
+//    ⚠️ **两处都得注入**：只改①，请求会被系统的明文策略掐掉；只改②，App 还往旧地址发。
+//
+// 🔴 **缺了就直接让构建失败，不给默认值。**
+//    给个默认值（比如 127.0.0.1）确实能构建成功，但装到手机上是一条永远连不上的死路 ——
+//    等于把「配置漏了」伪装成「服务端有问题」。宁可构建当场停下来把话说清楚。
+//    （跟 T7 插件侧 fail-closed 同一个道理。）
+def watchProps = new Properties()
+def watchPropsFile = rootProject.file('local.properties')
+if (watchPropsFile.exists()) { watchPropsFile.withInputStream { watchProps.load(it) } }
+// ⚠️ 名字带 aw 前缀不是洁癖：任务上有个同名属性 `watchHost`，在任务闭包里写裸
+//    `watchHost` 会被解析成那个 Property（而不是这里的字符串）—— 报出来的错完全看不懂。
+def awHost = (watchProps.getProperty('agentwatch.host') ?: '').trim()
+def awPort = (watchProps.getProperty('agentwatch.port') ?: '3080').trim()
+def awBaseUrl = "http://${awHost}:${awPort}/"
+
+if (!awHost) {
+    throw new GradleException('''
+==========================================================================
+构建停下来了：没配 agentwatch.host，不知道该让手机连哪台电脑。
+
+打开 android/local.properties，加一行：
+
+    agentwatch.host=<你那台跑 dsh 的电脑的 Tailscale 地址>
+
+不知道地址？在那台电脑上执行：
+
+    tailscale ip -4
+
+会打出一个 100.x.y.z 形式的地址，填进去就行。
+端口默认 3080，要换就再加一行：
+
+    agentwatch.port=1234
+
+（local.properties 不进版本库，填你自己的地址不会影响别人。）
+==========================================================================
+''')
+}
+
+// 生成任务。
+//
+// ⚠️ 写成**带输出属性的任务类**（而不是 `doLast` 里闷头写文件）是必须的，不是风格问题：
+//    只有把输出暴露成 `DirectoryProperty`，AGP 的变体 API 才接得住；接住了，它才会把
+//    「合并资源 → 处理导航资源 → 打包资源」这一串消费方任务的依赖**自动接对**。
+//    早先那版是手工 `dependsOn 'merge*Resources'`，在 Gradle 9 上直接构建失败 ——
+//    它报出来还有 processReleaseNavigationResources / packageReleaseResources /
+//    generateReleaseResources 三个消费方，**任务名根本列不全，这条路是死的**。
+abstract class GenerateAgentwatchResTask extends DefaultTask {
+    @Input abstract Property<String> getWatchHost()
+    @OutputDirectory abstract DirectoryProperty getOutputDir()
+
+    @TaskAction
+    void generate() {
+        def xmlDir = new File(outputDir.get().asFile, 'xml')
+        xmlDir.mkdirs()
+        // ⚠️ 显式 UTF-8：里面有中文注释，跟平台默认编码走会乱码，AAPT2 还可能直接读崩。
+        //    setText 不写 BOM，正好（带 BOM 的 XML 会让 AAPT2 报错）。
+        new File(xmlDir, 'network_security_config.xml').setText("""<?xml version="1.0" encoding="utf-8"?>
+<!-- 本文件由 app/build.gradle 生成，改这里没用 —— 下次构建会被覆盖。
+     要改地址，请改 android/local.properties 里的 agentwatch.host。 -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">${watchHost.get()}</domain>
+    </domain-config>
+</network-security-config>
+""", 'UTF-8')
+    }
+}
+
+def genResTask = tasks.register('generateAgentwatchRes', GenerateAgentwatchResTask)
+genResTask.configure { it.watchHost.set(awHost) }
+
+android {
+    namespace 'com.agentwatch.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.agentwatch.app"
+        minSdk 26
+        targetSdk 36
+        versionCode 8
+        // ⚠️ 每步都跟着 T 号改 —— 「手机上跑的是哪一版」以后是要靠它回答的
+        versionName "0.7-t9e"
+
+        // 地址从 local.properties 注入（见文件顶部那段）。
+        // ⚠️ 那对转义引号是必需的：buildConfigField 收的是 **Java 源码片段**，
+        //    不裹引号编出来就是 `= http://…` 这种语法错误。
+        buildConfigField "String", "BASE_URL", "\"${awBaseUrl}\""
+    }
+
+    buildFeatures {
+        // AGP 8 起 BuildConfig 默认**关掉了**，不显式打开就根本没有 BuildConfig 这个类
+        buildConfig true
+    }
+
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            // 不混淆：本 App 是个 WebView 壳，绝大部分逻辑在页面里，
+            // 混淆收益极小，而 R8 改坏反射/资源名的排查成本很高。侧载自用不值当。
+            minifyEnabled false
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// 接线：把生成目录作为「生成的资源目录」交给 AGP，由它负责所有依赖顺序。
+// ⚠️ 别改回手工 dependsOn —— 见上面任务类那段注释，Gradle 9 会判隐式依赖并构建失败。
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        variant.sources.res?.addGeneratedSourceDirectory(genResTask, { t -> t.outputDir })
+    }
+}

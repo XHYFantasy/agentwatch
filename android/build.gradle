@@ -1,0 +1,6 @@
+plugins {
+    // AGP 9 自带 Kotlin 支持（`com.android.application` 自己就注册了 `kotlin` 扩展），
+    // 所以**不能**再挂 `org.jetbrains.kotlin.android` —— 实测会报
+    // "Cannot add extension with name 'kotlin', as there is an extension already registered"。
+    id 'com.android.application' version '9.4.1' apply false
+}

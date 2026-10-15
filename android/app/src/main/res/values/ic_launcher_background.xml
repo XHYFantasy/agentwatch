@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      自适应图标的背景层。
+      取的是 Wan 出图边缘那圈深蓝（rgb 0,44,110）—— 前景位图自带同一色，
+      两层之间才不会有色块接缝。⚠️ 改这里就得同步改前景图，否则露馅。
+    -->
+    <color name="ic_launcher_background">#002C6E</color>
+</resources>

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- T9-d 常驻监听 -->
+    <!-- API 33+ 的运行时权限：没有它，前台服务的通知也不会显示（服务照跑，用户什么都看不到） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- API 34+ 起每个前台服务都要有一个 type，且必须在这里声明对应的权限 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!--
+      🔴 T9-b/B3 删掉了 `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`（2026-10-14）。
+      它原来是给常驻通知那个「保活设置」动作用的，而实测那是个**假按钮**：
+      这台 vivo 上 AOSP 的电池优化白名单拦不住后台被杀（真正管用的是 i 管家那三条，
+      见 SettingsActivity）。既然那个页面再也不跳了，权限就该一起收回 ——
+      留着一个用不上、又是 Play 政策明确关注的敏感权限，是给将来的自己埋雷。
+    -->
+
+    <!--
+      T9-e/C 开机自启。手机重启后进程全没了，前台服务不会自己回来 ——
+      没有这条权限，用户每次重启都得手动开一次 App，否则是**静默失联**。
+      ⚠️ Android 12+ 默认禁止从后台启动前台服务，但 BOOT_COMPLETED / MY_PACKAGE_REPLACED
+         是明文豁免的（ForegroundServiceStartNotAllowedException 的例外清单）。
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+      T9-b 图标。图形由本地 Wan 2.2 TI2V-5B 生成（生成与后处理脚本在 appicon\ 目录）。
+      自适应图标：mipmap-anydpi-v26 是 API 26+ 那层，低版本回落到 mipmap-*/ic_launcher.png。
+      ⚠️ 通知栏小图标**不走这里** —— 那是 drawable/ic_watch.xml，单色矢量。
+         通知图标必须是纯白 alpha 蒙版，塞彩色图会被系统涂成一个白块。
+    -->
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <!--
+          T9-e/A —— 不进最近任务列表。
+          这张卡片是「划掉 = force-stop」的**唯一入口**：没有卡片就没得划，那条**不自愈**的
+          死路直接不存在（系统内存压力回收有 START_STICKY 兜着，能自愈）。
+          用户仍然可以从桌面图标打开 App —— 「有没有卡片」和「能不能打开」是两件事。
+          ⚠️ 副作用待验：卡片消失后从桌面重开，会不会变成重建 Activity（WebView 重载 13MB SPA）。
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!--
+              T9-b/B3 桌面长按快捷方式。挂在 launcher activity 上（不是挂在目标 activity 上），
+              内容见 res/xml/shortcuts.xml。
+            -->
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
+        </activity>
+
+        <!--
+          T9-b/B3 设置页。
+          · exported="false"：只有本 App 能开它（快捷方式那条 intent 是显式的，不受影响）。
+          · launchMode="singleTop"：常驻通知的「设置」动作连点两下不会叠出两层。
+          · 不带 excludeFromRecents —— 这一页用户可能想留在最近任务里回来接着看。
+        -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title"
+            android:launchMode="singleTop" />
+
+        <!--
+          T9-d 常驻监听服务。
+          · foregroundServiceType="specialUse"：**不是 dataSync** —— Android 15 起
+            dataSync 有 6 小时/天的上限，而这东西的设计目标就是全天挂着。
+          · exported="false"：只有本 App 能起它。
+          · stopWithTask="false"：⚠️ **实测在本机 ROM 上不起作用**（2026-10-14 T9-d ⑥）——
+            vivo 的「最近任务划掉」是 force-stop（`exit-info` 记 reason=10 subreason=21，
+            之后包处于 stopped 态），服务、通知、进程一起没，`START_STICKY` 也拉不回来。
+            这条声明留着（在别的 ROM 上仍然正确），但**不能依赖它**：真正的对策是上面那条
+            `excludeFromRecents`（没有卡片可划）＋ 文档（别在设置里强停）。
+          · <property> 是 specialUse 的 subtype 说明，Play 审核时会看；侧载无副作用。
+            该标签 API 31 才有，在更低版本上 PackageParser 会跳过未知子标签。
+        -->
+        <service
+            android:name=".WatchService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="agentwatch_approval_watch" />
+        </service>
+
+        <!--
+          T9-e/C 开机自启 / 装包后自启。
+          · BOOT_COMPLETED      —— 正常开机
+          · MY_PACKAGE_REPLACED —— 装完新 APK 自动回来（我们自己反复装包时就靠它）
+          ⚠️ 不声明 LOCKED_BOOT_COMPLETED：那是设备加密解锁前的模式，本 App 要网络、
+             要 SharedPreferences，在那个阶段没有意义（还得 directBootAware）。
+          ⚠️ 它只在**包没被 force-stop** 时有效 —— stopped 状态跨重启保留。
+        -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

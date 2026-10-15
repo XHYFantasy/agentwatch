@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  自适应图标（API 26+）。
+  两层各画 108dp 见方，系统按 launcher 自己的形状（圆 / 方 / 水滴）裁出中间约 72dp ——
+  所以主体必须待在安全区内，这就是 make_icons.py 里那个 0.61 的来由。
+  · 背景层用纯色 @color/ic_launcher_background（#002C6E，取自出图边缘那圈深蓝）
+  · 前景层是位图，自带同一色背景 ⇒ 两层衔接处看不出缝
+  ⚠️ 没写 <monochrome>：那层要单色矢量，形态不对会画歪；本 App 侧载自用，不值当。
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>

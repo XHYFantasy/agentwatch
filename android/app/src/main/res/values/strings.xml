@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AI 监看</string>
+
+    <!-- T9-b/B3 桌面长按快捷方式。⚠️ shortcut 的 label **必须**是字符串资源，不能直接写字面量。 -->
+    <string name="shortcut_settings_short">设置</string>
+    <string name="shortcut_settings_long">AI 监看 · 设置与排查</string>
+    <!-- 设置页在「最近任务」/系统界面里的名字 -->
+    <string name="settings_title">AI 监看 · 设置</string>
+</resources>

@@ -1,0 +1,3 @@
+- insert:
+    - id: agentwatch-smoke
+      name: '@local/agentwatch-smoke'

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  通知的小图标。**必须是单色剪影**：系统只拿它的 alpha 通道当遮罩，
+  fillColor 会被忽略（所以这里写白色只是习惯）。用框架的 android.R.drawable.*
+  能省一个文件，但那些不是按遮罩画的，通知栏上会是一块糊的方块。
+  形状 = 一只眼睛（外面一圈 + 中间一个点）：监看。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,4a8,8 0 1,0 0.001,0zM12,8a4,4 0 1,1 -0.001,0z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,9.5a2.5,2.5 0 1,0 0.001,0z" />
+</vector>
